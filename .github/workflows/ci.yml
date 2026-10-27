@@ -14,10 +14,35 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Integration test (vote -> redis -> worker -> db -> result)
-        run: >
-          docker compose -f result/docker-compose.test.yml
-          up --build --abort-on-container-exit --exit-code-from sut
+      - name: Start the stack (hardened images)
+        run: docker compose -f result/docker-compose.test.yml up -d --build vote result worker redis db
+
+      - name: Smoke test (vote -> redis -> worker -> db, result page up)
+        run: |
+          C="docker compose -f result/docker-compose.test.yml"
+          for i in $(seq 1 30); do
+            $C exec -T vote curl -sf http://localhost:80 > /dev/null && break
+            sleep 2
+          done
+          $C exec -T vote curl -sS -X POST --data "vote=b" http://localhost:80 > /dev/null
+          COUNT=0
+          for i in $(seq 1 15); do
+            COUNT=$($C exec -T db psql -U postgres -tAc "SELECT COUNT(*) FROM votes" 2>/dev/null || echo 0)
+            [ "$COUNT" = "1" ] && break
+            sleep 2
+          done
+          echo "Votes saved in database: $COUNT"
+          [ "$COUNT" = "1" ]
+          $C exec -T result curl -sf http://localhost:80 > /dev/null
+          echo "Smoke test passed"
+
+      - name: Show logs if something failed
+        if: failure()
+        run: docker compose -f result/docker-compose.test.yml logs
+
+      - name: Stop the stack
+        if: always()
+        run: docker compose -f result/docker-compose.test.yml down -v
 
   build-scan-push:
     needs: test
