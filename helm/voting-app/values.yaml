@@ -1,0 +1,33 @@
+vote:
+  image:
+    repository: ghcr.io/estherjonathan1/voting-app-vote
+    tag: "9a456efeeaca4a2a8755b1781d43685c258f2934"
+  replicas: 1
+  service:
+    type: ClusterIP
+    port: 80
+
+result:
+  image:
+    repository: ghcr.io/estherjonathan1/voting-app-result
+    tag: "9a456efeeaca4a2a8755b1781d43685c258f2934"
+  replicas: 1
+  service:
+    type: ClusterIP
+    port: 80
+
+worker:
+  image:
+    repository: ghcr.io/estherjonathan1/voting-app-worker
+    tag: "9a456efeeaca4a2a8755b1781d43685c258f2934"
+  replicas: 1
+
+redis:
+  image: redis:alpine
+
+db:
+  image: postgres:15-alpine
+  # Demo-only credentials. The upstream app has these hardcoded in its code
+  # (user "postgres", password "postgres"), so the database must use the same.
+  user: postgres
+  password: postgres
